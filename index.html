@@ -68,65 +68,71 @@
 
     connectButton.addEventListener("click", function (event) {
       connect();
-      // msg("Trying to write file ...");
-      // You'll want to replace this with the data you want to transfer.
-      //   let fileContents = prepareDummyFileContents(15 * 1024);
-      transferFile();
+
+      transferCustomFileButton.addEventListener("change", function (e) {
+        function handleImage(e) {
+          var reader = new FileReader();
+          const canvas = document.getElementById("out-img-test");
+          var ctx = canvas.getContext("2d");
+          reader.onload = async function (event) {
+            var img = new Image();
+            img.src = event.target.result;
+            img.onload = function () {
+              canvas.width = 400;
+              canvas.height = 300;
+              ctx.fillStyle = "black";
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+              ctx.drawImage(img, 0, 0);
+
+              var context = document
+                .getElementById("out-img-test")
+                .getContext("2d");
+
+              // Get the CanvasPixelArray from the given coordinates and dimensions.
+              var imgd = context.getImageData(0, 0, 400, 300);
+              var pix = imgd.data;
+
+              // Loop over each pixel and invert the color.
+              var outImageDataTemp1 = new Uint8Array(pix.length / 4);
+              for (var i = 0, n = pix.length; i < n; i += 4) {
+                const pixelActual = Math.floor(
+                  (pix[i] + pix[i + 1] + pix[i + 2]) / 3
+                );
+                outImageDataTemp1[i / 4] = pixelActual > 30 ? 1 : 0;
+                // outImageDataTemp1[i / 4] = pixelActual > 50 ? 0 : 1;
+              }
+              var outImageDataTemp2 = new Uint8Array(
+                outImageDataTemp1.byteLength / 8
+              );
+              const maxSize = outImageDataTemp1.byteLength;
+              for (var i = 0; i < maxSize; i += 8) {
+                var tempInt = 0;
+                for (let bs = 0; bs < 8; bs++) {
+                  tempInt = tempInt | outImageDataTemp1[i + bs];
+                  // tempInt = tempInt | outImageDataTemp1[i - bs + 7];
+                  tempInt = bs < 7 ? tempInt << 1 : tempInt;
+                }
+                outImageDataTemp2[i / 8] = tempInt;
+              }
+              const outImageDataTemp3 = outImageDataTemp2.buffer;
+
+              // console.log(outImageDataTemp3)
+              transferFile(outImageDataTemp3);
+
+              // console.log(outImageDataTemp1);
+              // console.log(outImageDataTemp2);
+            };
+          };
+          reader.readAsDataURL(e.target.files[0]);
+        }
+        handleImage(e);
+      });
+
       cancelTransferButton.addEventListener("click", function (event) {
         msg("Trying to cancel transfer ...");
         cancelTransfer();
       });
-    });
-
-    transferCustomFileButton.addEventListener("change", function (e) {
-      function handleImage(e) {
-        var reader = new FileReader();
-        const canvas = document.getElementById("out-img-test");
-        var ctx = canvas.getContext("2d");
-        reader.onload = async function (event) {
-          var img = new Image();
-          img.src = event.target.result;
-          img.onload = function () {
-            canvas.width = 400;
-            canvas.height = 300;
-            ctx.drawImage(img, 0, 0);
-
-            var context = document
-              .getElementById("out-img-test")
-              .getContext("2d");
-
-            // Get the CanvasPixelArray from the given coordinates and dimensions.
-            var imgd = context.getImageData(0, 0, 400, 300);
-            var pix = imgd.data;
-
-            // Loop over each pixel and invert the color.
-            var outImageDataTemp1 = new Uint8Array(pix.length / 4);
-            for (var i = 0, n = pix.length; i < n; i += 4) {
-              const pixelActual = Math.floor(
-                (pix[i] + pix[i + 1] + pix[i + 2]) / 3
-              );
-              outImageDataTemp1[i / 4] = pixelActual > 30 ? 1 : 0;
-            }
-            var outImageDataTemp2 = new Uint8Array(
-              outImageDataTemp1.byteLength / 8
-            );
-            const maxSize = outImageDataTemp1.byteLength;
-            for (var i = 0; i < maxSize; i += 8) {
-              var tempInt = 0;
-              for (let bs = 0; bs < 8; bs++) {
-                tempInt = tempInt | outImageDataTemp1[i - bs + 7];
-                tempInt = bs < 7 ? tempInt << 1 : tempInt;
-              }
-              outImageDataTemp2[i / 8] = tempInt;
-            }
-            transferFile(outImageDataTemp2);
-            // console.log(outImageDataTemp1);
-            // console.log(outImageDataTemp2);
-          };
-        };
-        reader.readAsDataURL(e.target.files[0]);
-      }
-      handleImage(e);
     });
 
     // ------------------------------------------------------------------------------
@@ -348,7 +354,7 @@
       fileBlockCharacteristic
         .writeValue(blockView)
         .then((_) => {
-          console.log(bytesRemaining);
+          // console.log(bytesRemaining);
           bytesRemaining -= blockLength;
           if (bytesRemaining > 0 && isFileTransferInProgress) {
             msg("File block written - " + bytesRemaining + " bytes remaining");
